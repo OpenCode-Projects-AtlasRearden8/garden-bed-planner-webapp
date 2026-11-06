@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garden Bed Planner — offline, local-first</title>
+<style>
+  :root {
+    --green: #2f6b3a;
+    --green-dark: #22512b;
+    --cream: #faf7ef;
+    --paper: #ffffff;
+    --ink: #2b2b26;
+    --muted: #6b6b60;
+    --line: #e3ded2;
+    --accent: #c46a2b;
+    --danger: #a33a2e;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--cream);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--green);
+    color: #fff;
+    padding: 14px 20px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: 0.3px;
+  }
+  header .sub {
+    color: #d8ead9;
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 0.9rem;
+  }
+  .topbar label { color: #d8ead9; margin-right: 4px; }
+  .topbar input, .topbar select {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 3px 6px;
+    border: 1px solid #3e7a4a;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+  }
+  nav.tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--green-dark);
+    padding: 0 20px;
+  }
+  nav.tabs button {
+    font: inherit;
+    font-size: 0.95rem;
+    background: transparent;
+    color: #cfe6d1;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 16px;
+    cursor: pointer;
+  }
+  nav.tabs button.active {
+    background: var(--cream);
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+    font-weight: bold;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 18px 20px 60px; }
+  h2 { font-size: 1.15rem; margin: 22px 0 8px; color: var(--green-dark); }
+  p.hint { color: var(--muted); font-size: 0.9rem; margin: 4px 0 12px; }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin: 12px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .bed-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+  }
+  .bed-head .field { display: flex; flex-direction: column; }
+  .bed-head .grow { flex: 1 1 160px; }
+  .field label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  input, select, textarea {
+    font: inherit;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 8px;
+    background: #fff;
+    width: 100%;
+  }
+  input[type="number"] { max-width: 90px; }
+  textarea { width: 100%; min-height: 54px; resize: vertical; }
+  button.btn {
+    font: inherit;
+    font-size: 0.9rem;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  button.btn.secondary { background: #e8e3d5; color: var(--ink); }
+  button.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 3px 10px; font-size: 0.8rem; }
+  button:hover { filter: brightness(0.95); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+  th, td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .row-calc { color: var(--green-dark); white-space: nowrap; }
+  .calc-total {
+    margin-top: 10px;
+    font-size: 0.95rem;
+    background: #eef4ec;
+    border: 1px solid #cfdecb;
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .badge.now { background: #4d3f04; color: #ffe479; border-color: #4d3f04; }
+  .badge.past { background: #f0e2df; color: var(--danger); border-color: var(--danger); }
+  .badge.future { background: #eef4ec; color: var(--green-dark); border-color: var(--green-dark); }
+  .log-entry { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .log-entry .when { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+  .log-entry .kind {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+  .frostbar {
+    background: #fff8e8;
+    border: 1px solid #e7d9ad;
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 0.92rem;
+    margin-bottom: 8px;
+  }
+  .frostbar strong { color: var(--green-dark); }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 20px;
+  }
+  .grid-2 { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .grid-2 .field { display: flex; flex-direction: column; }
+  code { background: #f0ede4; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+  a { color: var(--green-dark); }
+  .warn { color: var(--danger); font-size: 0.85rem; }
+  @media print {
+    nav.tabs, .btn, button { display: none; }
+    .card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Garden Bed Planner</h1>
+  <div class="sub">Plan real beds instead of paper guesses — rows, counts, and frost dates, saved right on this device.</div>
+  <div class="topbar">
+    <label for="zoneSelect">Your USDA zone</label>
+    <select id="zoneSelect"></select>
+    <label for="yearInput">Planning year</label>
+    <input type="number" id="yearInput" min="2020" max="2100">
+    <span id="frostHeaderDates"></span>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="beds" class="active">Beds &amp; Rows</button>
+  <button data-tab="schedule">Planting Schedule</button>
+  <button data-tab="log">Season Log</button>
+  <button data-tab="data">Save &amp; Data</button>
+</nav>
+
+<main id="view"></main>
+
+<footer>
+  Runs fully offline from a single file. Everything is stored in your browser's localStorage —
+  nothing is sent anywhere. Built by <strong>Asdale Dynamics, LLC</strong>. Released under the MIT license.
+</footer>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   Pure planning logic (no DOM). These are the exact functions exercised
+   by tests/test.mjs — keep them dependency-free.
+   ===================================================================== */
+var GBP = (function () {
+
+  // Approximate average frost window by USDA hardiness zone (US cone). Edit
+  // dates in Settings are honored per year; treat these as planning baselines,
+  // not guarantees. Format: "MM-DD".
+  var FROST_TABLE = {
+    3:  { lastFrost: "05-15", firstFrost: "09-15" },
+    4:  { lastFrost: "05-01", firstFrost: "10-01" },
+    5:  { lastFrost: "04-20", firstFrost: "10-15" },
+    6:  { lastFrost: "04-10", firstFrost: "10-25" },
+    7:  { lastFrost: "03-25", firstFrost: "11-05" },
+    8:  { lastFrost: "03-10", firstFrost: "11-20" },
+    9:  { lastFrost: "02-15", firstFrost: "12-05" },
+    10: { lastFrost: "01-15", firstFrost: "12-20" }
+  };
+  var MIN_ZONE = 3, MAX_ZONE = 10;
+
+  // Seed catalog: weeksStart = weeks before last frost to start seeds indoors
+  // (null = direct sow only). daysOut = days after last frost to transplant
+  // outdoors (negative = before the frost date). Spacings in inches.
+  var CATALOG = [
+    { id: "pea",         name: "Peas",           weeksStart: null, daysOut: -35, plantSpacing: 2,  rowSpacing: 18 },
+    { id: "spinach",     name: "Spinach",        weeksStart: null, daysOut: -28, plantSpacing: 4,  rowSpacing: 12 },
+    { id: "lettuce",     name: "Lettuce",        weeksStart: 4,    daysOut: -14, plantSpacing: 10, rowSpacing: 12 },
+    { id: "onion",       name: "Onion",          weeksStart: 8,    daysOut: -14, plantSpacing: 4,  rowSpacing: 14 },
+    { id: "broccoli",    name: "Broccoli",       weeksStart: 8,    daysOut: -14, plantSpacing: 18, rowSpacing: 24 },
+    { id: "kale",        name: "Kale",           weeksStart: 6,    daysOut: -14, plantSpacing: 16, rowSpacing: 22 },
+    { id: "carrot",      name: "Carrots",        weeksStart: null, daysOut: -14, plantSpacing: 2,  rowSpacing: 10 },
+    { id: "beet",        name: "Beets",          weeksStart: null, daysOut: -14, plantSpacing: 3,  rowSpacing: 12 },
+    { id: "radish",      name: "Radish",         weeksStart: null, daysOut: -10, plantSpacing: 2,  rowSpacing: 8  },
+    { id: "potato",      name: "Potatoes",       weeksStart: null, daysOut: -7,  plantSpacing: 12, rowSpacing: 30 },
+    { id: "tomato",      name: "Tomato",         weeksStart: 6,    daysOut: 7,   plantSpacing: 24, rowSpacing: 36 },
+    { id: "pepper",      name: "Pepper",         weeksStart: 8,    daysOut: 14,  plantSpacing: 18, rowSpacing: 24 },
+    { id: "eggplant",    name: "Eggplant",       weeksStart: 8,    daysOut: 14,  plantSpacing: 18, rowSpacing: 30 },
+    { id: "basil",       name: "Basil",          weeksStart: 6,    daysOut: 14,  plantSpacing: 10, rowSpacing: 12 },
+    { id: "bean",        name: "Beans (bush)",   weeksStart: null, daysOut: 7,   plantSpacing: 4,  rowSpacing: 18 },
+    { id: "corn",        name: "Sweet corn",     weeksStart: null, daysOut: 14,  plantSpacing: 12, rowSpacing: 30 },
+    { id: "cucumber",    name: "Cucumber",       weeksStart: 2,    daysOut: 7,   plantSpacing: 24, rowSpacing: 36 },
+    { id: "zucchini",    name: "Zucchini",       weeksStart: 2,    daysOut: 7,   plantSpacing: 24, rowSpacing: 36 },
+    { id: "wintermelon", name: "Winter squash",  weeksStart: 3,    daysOut: 14,  plantSpacing: 36, rowSpacing: 48 },
+    { id: "pumpkin",     name: "Pumpkin",        weeksStart: 2,    daysOut: 7,   plantSpacing: 36, rowSpacing: 72 }
+  ];
+
+  var DAY_MS = 86400000;
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function clampZone(zone) {
+    var z = Math.round(Number(zone));
+    if (isNaN(z)) return MIN_ZONE;
+    return Math.min(MAX_ZONE, Math.max(MIN_ZONE, z));
+  }
+
+  // ---------- Date math (UTC-noon arithmetic; no DST surprises) ----------
+  function parseISO(iso) {
+    if (!iso || iso.length !== 10) return null;
+    var parts = iso.split("-");
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    if (m < 1 || m > 12 || d < 1 || d > new Date(Date.UTC(y, m, 0)).getUTCDate()) return null;
+    // Anchored to noon UTC so +/- day math never crosses into neighbors.
+    return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  }
+
+  function toISO(date) {
+    return date.getUTCFullYear() + "-" +
+      String(date.getUTCMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getUTCDate()).padStart(2, "0");
+  }
+
+  function addDays(iso, days) {
+    var d = parseISO(iso);
+    if (!d) return null;
+    return toISO(new Date(d.getTime() + days * DAY_MS));
+  }
+
+  function diffDays(fromISO, toISOStr) {
+    var a = parseISO(fromISO), b = parseISO(toISOStr);
+    if (!a || !b) return null;
+    return Math.round((b.getTime() - a.getTime()) / DAY_MS);
+  }
+
+  function formatDate(iso) {
+    var d = parseISO(iso);
+    if (!d) return "—";
+    return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate();
+  }
+
+  // "MM-DD" + year -> full ISO date, validating via parseISO.
+  function monthDayToISO(md, year) {
+    if (typeof md !== "string" || md.length !== 5) return null;
+    return addDays(year + "-" + md, 0);
+  }
+
+  function frostDates(zone, year) {
+    var z = clampZone(zone);
+    var y = Math.round(Number(year));
+    if (!y || isNaN(y)) y = new Date().getUTCFullYear();
+    var win = FROST_TABLE[z];
+    return {
+      zone: z,
+      year: y,
+      lastFrost: monthDayToISO(win.lastFrost, y),
+      firstFrost: monthDayToISO(win.firstFrost, y)
+    };
+  }
+
+  // ---------- Spacing math ----------
+  // Plants that fit along a row of `lengthIn` inches with `plantSpacingIn`
+  // inches between plant centers, laid out evenly and centered in the row
+  // (each end gets at least a half-spacing setback).
+  function plantsPerRow(lengthIn, plantSpacingIn) {
+    var L = Number(lengthIn), s = Number(plantSpacingIn);
+    if (!isFinite(L) || !isFinite(s) || L <= 0 || s <= 0) return 0;
+    return Math.floor(L / s);
+  }
+
+  // Rows that fit across a bed `widthIn` inches wide with `rowSpacingIn`
+  // inches between row centers, centered so each edge gets at least a
+  // half-spacing setback.
+  function rowsFit(widthIn, rowSpacingIn) {
+    var W = Number(widthIn), r = Number(rowSpacingIn);
+    if (!isFinite(W) || !isFinite(r) || W <= 0 || r <= 0) return 0;
+    return Math.floor(W / r);
+  }
+
+  // True length available for one row given edges take half the plant
+  // spacing on each side (informational; guides tight beds).
+  function usableRowLength(lengthIn, plantSpacingIn) {
+    var L = Number(lengthIn), s = Number(plantSpacingIn);
+    if (!isFinite(L) || !isFinite(s) || L <= 0 || s <= 0) return 0;
+    return Math.max(0, L - s);
+  }
+
+  function scheduleForPlant(plant, zone, year) {
+    var f = frostDates(zone, year);
+    var isDirect = plant.weeksStart === null || plant.weeksStart === undefined;
+    var startISO = isDirect ? null : addDays(f.lastFrost, -plant.weeksStart * 7);
+    return {
+      plantId: plant.id,
+      name: plant.name,
+      isDirectSow: isDirect,
+      startIndoorsISO: startISO,
+      setOutISO: addDays(f.lastFrost, plant.daysOut),
+      zone: f.zone,
+      year: f.year
+    };
+  }
+
+  function catalog() { return CATALOG.slice(); }
+  function plantById(id) {
+    for (var i = 0; i < CATALOG.length; i++) if (CATALOG[i].id === id) return CATALOG[i];
+    return null;
+  }
+  function frostTable() { return JSON.parse(JSON.stringify(FROST_TABLE)); }
+
+  return {
+    FROST_TABLE: FROST_TABLE,
+    parseISO: parseISO,
+    toISO: toISO,
+    addDays: addDays,
+    diffDays: diffDays,
+    formatDate: formatDate,
+    monthDayToISO: monthDayToISO,
+    clampZone: clampZone,
+    frostDates: frostDates,
+    plantsPerRow: plantsPerRow,
+    rowsFit: rowsFit,
+    usableRowLength: usableRowLength,
+    scheduleForPlant: scheduleForPlant,
+    catalog: catalog,
+    plantById: plantById,
+    frostTable: frostTable
+  };
+})();
+
+/* =====================================================================
+   State & persistence (localStorage, single key, local-only)
+   ===================================================================== */
+var STORAGE_KEY = "garden-bed-planner-v1";
+
+function uid() {
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+}
+
+function defaultState() {
+  return { zone: 5, year: new Date().getUTCFullYear(), beds: [], log: [] };
+}
+
+function migrate(raw) {
+  var s = raw && typeof raw === "object" ? raw : null;
+  if (s === null) throw new Error("Data must be an object.");
+  var out = defaultState();
+  out.zone = GBP.clampZone(s.zone !== undefined ? s.zone : out.zone);
+  var y = parseInt(s.year, 10);
+  out.year = isFinite(y) && y >= 2020 && y <= 2100 ? y : out.year;
+  if (Array.isArray(s.beds)) {
+    for (var i = 0; i < s.beds.length; i++) {
+      var b = s.beds[i];
+      if (!b || typeof b !== "object") continue;
+      var bed = {
+        id: typeof b.id === "string" ? b.id : uid(),
+        name: typeof b.name === "string" ? b.name.slice(0, 80) : "Bed",
+        lengthFt: saneFeet(b.lengthFt, 8),
+        widthFt: saneFeet(b.widthFt, 4),
+        successionNotes: typeof b.successionNotes === "string" ? b.successionNotes.slice(0, 4000) : "",
+        rows: []
+      };
+      if (Array.isArray(b.rows)) {
+        for (var r = 0; r < b.rows.length && r < 200; r++) {
+          var row = b.rows[r];
+          if (!row || typeof row !== "object") continue;
+          var plant = GBP.plantById(row.plantId) ? row.plantId : "lettuce";
+          bed.rows.push({
+            id: typeof row.id === "string" ? row.id : uid(),
+            plantId: plant,
+            plantSpacingIn: saneInches(row.plantSpacingIn, 6),
+            rowSpacingIn: saneInches(row.rowSpacingIn, 12),
+            successionWeeks: saneWeeks(row.successionWeeks, 0)
+          });
+        }
+      }
+      out.beds.push(bed);
+    }
+    if (out.beds.length > 200) out.beds = out.beds.slice(0, 200);
+  }
+  if (Array.isArray(s.log)) {
+    for (var e = 0; e < s.log.length && e < 1000; e++) {
+      var entry = s.log[e];
+      if (!entry || typeof entry !== "object") continue;
+      var kind = ["seed-started", "transplanted", "harvested", "note", "wrap-up"].indexOf(entry.kind) >= 0
+        ? entry.kind : "note";
+      out.log.push({
+        id: typeof entry.id === "string" ? entry.id : uid(),
+        date: GBP.parseISO(entry.date) ? entry.date : GBP.toISO(new Date()),
+        bedId: typeof entry.bedId === "string" ? entry.bedId : "",
+        kind: kind,
+        text: typeof entry.text === "string" ? entry.text.slice(0, 2000) : ""
+      });
+    }
+  }
+  return out;
+}
+
+function saneFeet(v, fallback) {
+  var n = Number(v);
+  if (!isFinite(n)) return fallback;
+  return Math.max(0.5, Math.min(200, n));
+}
+function saneInches(v, fallback) {
+  var n = Number(v);
+  if (!isFinite(n)) return fallback;
+  return Math.max(1, Math.min(120, n));
+}
+function saneWeeks(v, fallback) {
+  var n = Number(v);
+  if (!isFinite(n)) return fallback;
+  return Math.max(0, Math.min(52, Math.round(n)));
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    return migrate(JSON.parse(raw));
+  } catch (err) {
+    // Corrupt or unavailable storage: fall back to defaults, don't crash.
+    return defaultState();
+  }
+}
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+var state = loadState();
+var activeTab = "beds";
+var lastSaveStatus = "";
+
+function persist() {
+  lastSaveStatus = saveState(state) ? "Saved at " + clockNow() : "Could not save (storage unavailable)";
+}
+function clockNow() {
+  try { return new Date().toLocaleTimeString(); } catch (e) { return ""; }
+}
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+if (typeof document !== "undefined") (function () {
+  var $view = document.getElementById("view");
+  var $zoneSelect = document.getElementById("zoneSelect");
+  var $yearInput = document.getElementById("yearInput");
+  var $frostHeaderDates = document.getElementById("frostHeaderDates");
+  var $tabs = document.getElementById("tabs");
+
+  var ZONE_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10];
+  var LOG_KINDS = [
+    { id: "seed-started", label: "Seed started" },
+    { id: "transplanted", label: "Transplanted" },
+    { id: "harvested", label: "Harvested" },
+    { id: "note", label: "Note" },
+    { id: "wrap-up", label: "Wrap-up" }
+  ];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function todayISO() {
+    var n = new Date();
+    return GBP.toISO(new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), 12)));
+  }
+  function dayBadge(iso) {
+    var diff = GBP.diffDays(todayISO(), iso);
+    if (diff === null) return "";
+    if (diff === 0) return '<span class="badge now">today</span>';
+    if (diff < 0) return '<span class="badge past">' + (-diff) + 'd ago</span>';
+    return '<span class="badge future">in ' + diff + 'd</span>';
+  }
+
+  function frostHeader() {
+    var f = GBP.frostDates(state.zone, state.year);
+    $frostHeaderDates.innerHTML =
+      'Last frost: <strong>' + GBP.formatDate(f.lastFrost) + '</strong> · ' +
+      'First fall frost: <strong>' + GBP.formatDate(f.firstFrost) + '</strong>';
+  }
+
+  function renderTop() {
+    var opts = ZONE_OPTIONS.map(function (z) {
+      return '<option value="' + z + '"' + (z === state.zone ? " selected" : "") + '>Zone ' + z + "</option>";
+    });
+    $zoneSelect.innerHTML = opts.join("");
+    $yearInput.value = state.year;
+    frostHeader();
+  }
+
+  function bedTotals(bed) {
+    var rowsTotal = 0, plantsTotal = 0;
+    for (var i = 0; i < bed.rows.length; i++) {
+      var r = bed.rows[i];
+      var nRows = GBP.rowsFit(bed.widthFt * 12, r.rowSpacingIn);
+      var per = GBP.plantsPerRow(bed.lengthFt * 12, r.plantSpacingIn);
+      rowsTotal += nRows;
+      plantsTotal += nRows * per;
+    }
+    return { rows: rowsTotal, plants: plantsTotal };
+  }
+
+  function bedRowCalc(bed, row) {
+    var nRows = GBP.rowsFit(bed.widthFt * 12, row.rowSpacingIn);
+    var per = GBP.plantsPerRow(bed.lengthFt * 12, row.plantSpacingIn);
+    return { rows: nRows, perRow: per, plants: nRows * per };
+  }
+
+  // ---------------- Beds tab ----------------
+  function renderBeds() {
+    var html = '<div class="frostbar">Zone <strong>' + state.zone + "</strong>, " + state.year +
+      ": last frost <strong>" + GBP.formatDate(GBP.frostDates(state.zone, state.year).lastFrost) +
+      "</strong>, first fall frost <strong>" +
+      GBP.formatDate(GBP.frostDates(state.zone, state.year).firstFrost) +
+      "</strong>. Rows and counts update as you set spacing.</div>";
+
+    html += '<h2>Add a bed</h2>' +
+      '<p class="hint">Measure the bed&rsquo;s growing length and width in feet. Even a 2&times;8 planter works.</p>' +
+      '<div class="card grid-2">' +
+      '<div class="field grow"><label>Bed name</label><input type="text" id="newBedName" placeholder="e.g. North bed" maxlength="80"></div>' +
+      '<div class="field"><label>Length (ft)</label><input type="number" id="newBedLen" min="0.5" max="200" step="0.5" value="8"></div>' +
+      '<div class="field"><label>Width (ft)</label><input type="number" id="newBedWid" min="0.5" max="50" step="0.5" value="4"></div>' +
+      '<div class="field"><label>&nbsp;</label><button class="btn" id="addBedBtn">Add bed</button></div>' +
+      "</div>";
+
+    if (state.beds.length === 0) {
+      html += '<div class="card"><div class="empty">No beds yet — add your first one above and it will be saved automatically.</div></div>';
+      $view.innerHTML = html;
+      return;
+    }
+
+    html += '<h2>Your beds (' + state.beds.length + ")</h2>";
+    for (var i = 0; i < state.beds.length; i++) html += bedCard(state.beds[i], i);
+    $view.innerHTML = html;
+  }
+
+  function bedCard(bed, idx) {
+    var totals = bedTotals(bed);
+    var html = '<div class="card" data-bed-index="' + idx + '">' +
+      '<div class="bed-head">' +
+      '<div class="field grow"><label>Bed name</label><input type="text" class="bed-name" maxlength="80" value="' + esc(bed.name) + '"></div>' +
+      '<div class="field"><label>Length (ft)</label><input type="number" class="bed-len" min="0.5" max="200" step="0.5" value="' + bed.lengthFt + '"></div>' +
+      '<div class="field"><label>Width (ft)</label><input type="number" class="bed-wid" min="0.5" max="50" step="0.5" value="' + bed.widthFt + '"></div>' +
+      '<div class="field"><label>&nbsp;</label><button class="btn danger bed-delete">Delete bed</button></div>' +
+      "</div>";
+
+    if (bed.rows.length > 0) {
+      html += '<table><thead><tr>' +
+        '<th>Row (edit spacing in inches)</th><th>Plants / row</th><th>Rows</th><th class="num">Total</th><th></th>' +
+        "</tr></thead><tbody>";
+
+      for (var r = 0; r < bed.rows.length; r++) {
+        var row = bed.rows[r];
+        var calc = bedRowCalc(bed, row);
+        var plant = GBP.plantById(row.plantId);
+        html += '<tr>' +
+          '<td><select class="row-plant" data-row-index="' + r + '">' +
+          GBP.catalog().map(function (p) {
+            return '<option value="' + p.id + '"' + (p.id === row.plantId ? " selected" : "") + ">" + esc(p.name) + "</option>";
+          }).join("") +
+          "</select>" +
+          ' <input type="number" class="row-ps" data-row-index="' + r + '" min="1" max="120" step="0.5" value="' + row.plantSpacingIn + '" title="Plant spacing (inches)"> ' +
+          ' <input type="number" class="row-rs" data-row-index="' + r + '" min="1" max="120" step="0.5" value="' + row.rowSpacingIn + '" title="Row spacing (inches)"> ' +
+          '</td><td class="num">' + calc.perRow + '</td><td class="num">' + calc.rows +
+          '</td><td class="num row-calc"><strong>' + calc.plants + '</strong> ' + esc(plant ? plant.name : "") + '</td>' +
+          '<td><button class="btn danger row-delete" data-row-index="' + r + '">Remove</button></td></tr>';
+      }
+      html += "</tbody></table>";
+    } else {
+      html += '<div class="empty">No rows planned yet for this bed.</div>';
+    }
+
+    html += '<div class="grid-2" style="margin-top:10px">' +
+      '<div class="field"><label>&nbsp;</label><button class="btn secondary row-add">Add crop row</button></div>' +
+      "</div>" +
+      '<div class="calc-total">Bed totals: <strong>' + totals.rows + '</strong> row(s), about <strong>' +
+      totals.plants + '</strong> plants. Spacing is centered, so edges keep at least a half-spacing setback.</div>';
+
+    html += '<div style="margin-top:12px"><label><strong>Succession notes for this bed</strong></label>' +
+      '<p class="hint">What was here, what goes in next, and when. Perfect for quick reminders between plantings.</p>' +
+      '<textarea class="bed-notes" maxlength="4000" placeholder="e.g. Peas out June 10, then bush beans. Late August lettuce after beans come out.">' + esc(bed.successionNotes) + "</textarea></div>";
+
+    html += "</div>";
+    return html;
+  }
+
+  function bedsClickHandlers(ev) {
+    var t = ev.target;
+    if (t.id === "addBedBtn") {
+      var name = document.getElementById("newBedName").value.trim() || "Bed " + (state.beds.length + 1);
+      var len = parseFloat(document.getElementById("newBedLen").value) || 8;
+      var wid = parseFloat(document.getElementById("newBedWid").value) || 4;
+      state.beds.push({
+        id: uid(), name: name.slice(0, 80),
+        lengthFt: saneFeet(len, 8), widthFt: saneFeet(wid, 4),
+        successionNotes: "", rows: []
+      });
+      persist(); renderAll();
+    } else if (t.classList.contains("bed-delete")) {
+      var card = t.closest("[data-bed-index]");
+      var bedIdx = parseInt(card.getAttribute("data-bed-index"), 10);
+      if (confirm("Delete \"" + state.beds[bedIdx].name + "\" and its rows?")) {
+        state.beds.splice(bedIdx, 1);
+        persist(); renderAll();
+      }
+    } else if (t.classList.contains("row-delete")) {
+      var bedCardEl = t.closest("[data-bed-index]");
+      var bIdx = parseInt(bedCardEl.getAttribute("data-bed-index"), 10);
+      var rdel = parseInt(t.getAttribute("data-row-index"), 10);
+      state.beds[bIdx].rows.splice(rdel, 1);
+      persist(); renderAll();
+    } else if (t.classList.contains("row-add")) {
+      var cardEl = t.closest("[data-bed-index]");
+      var bAdd = parseInt(cardEl.getAttribute("data-bed-index"), 10);
+      var first = GBP.catalog()[0];
+      state.beds[bAdd].rows.push({
+        id: uid(), plantId: first.id,
+        plantSpacingIn: first.plantSpacing, rowSpacingIn: first.rowSpacing,
+        successionWeeks: 0
+      });
+      persist(); renderAll();
+    }
+  }
+
+  function bedsChangeHandlers(ev) {
+    var t = ev.target;
+    var card = t.closest ? t.closest("[data-bed-index]") : null;
+    if (!card) {
+      return;
+    }
+    var bIdx = parseInt(card.getAttribute("data-bed-index"), 10);
+    var bed = state.beds[bIdx];
+    if (!bed) return;
+    if (t.classList.contains("bed-name")) bed.name = t.value.slice(0, 80) || bed.name;
+    else if (t.classList.contains("bed-len")) { bed.lengthFt = saneFeet(parseFloat(t.value), bed.lengthFt); renderAll(); persist(); return; }
+    else if (t.classList.contains("bed-wid")) { bed.widthFt = saneFeet(parseFloat(t.value), bed.widthFt); renderAll(); persist(); return; }
+    else if (t.classList.contains("bed-notes")) bed.successionNotes = t.value.slice(0, 4000);
+    else if (t.classList.contains("row-plant")) {
+      var row = bed.rows[parseInt(t.getAttribute("data-row-index"), 10)];
+      var plant = GBP.plantById(t.value);
+      if (plant) { row.plantId = plant.id; row.plantSpacingIn = plant.plantSpacing; row.rowSpacingIn = plant.rowSpacing; renderAll(); persist(); return; }
+    } else if (t.classList.contains("row-ps")) {
+      var rp = bed.rows[parseInt(t.getAttribute("data-row-index"), 10)];
+      rp.plantSpacingIn = saneInches(parseFloat(t.value), rp.plantSpacingIn);
+    } else if (t.classList.contains("row-rs")) {
+      var rr = bed.rows[parseInt(t.getAttribute("data-row-index"), 10)];
+      rr.rowSpacingIn = saneInches(parseFloat(t.value), rr.rowSpacingIn);
+    }
+    persist();
+    bedCardRefreshCounts(bIdx, card);
+  }
+
+  // Update the numbers without rebuilding the DOM (so typing isn't interrupted).
+  function bedCardRefreshCounts(bIdx, card) {
+    var bed = state.beds[bIdx];
+    var rowsCells = card.querySelectorAll("table tbody tr");
+    for (var r = 0; r < bed.rows.length && r < rowsCells.length; r++) {
+      var calc = bedRowCalc(bed, bed.rows[r]);
+      var cells = rowsCells[r].querySelectorAll("td");
+      if (cells.length >= 4) {
+        cells[1].textContent = calc.perRow;
+        cells[2].textContent = calc.rows;
+        cells[3].innerHTML = "<strong>" + calc.plants + "</strong> " + esc((GBP.plantById(bed.rows[r].plantId) || {}).name || "");
+      }
+    }
+    var totals = bedTotals(bed);
+    var totalEl = card.querySelector(".calc-total");
+    if (totalEl) totalEl.innerHTML = "Bed totals: <strong>" + totals.rows + "</strong> row(s), about <strong>" +
+      totals.plants + "</strong> plants. Spacing is centered, so edges keep at least a half-spacing setback.";
+  }
+
+  // ---------------- Schedule tab ----------------
+  function renderSchedule() {
+    var f = GBP.frostDates(state.zone, state.year);
+    var html = '<div class="frostbar">For zone <strong>' + state.zone + '</strong> in ' + state.year +
+      ': last spring frost <strong>' + GBP.formatDate(f.lastFrost) + '</strong>, first fall frost <strong>' +
+      GBP.formatDate(f.firstFrost) + '</strong>. Dates are the zone&rsquo;s typical average — watch your local weather and adjust a week either way.</div>';
+    html += "<h2>Seed-start and transplant schedule</h2>" +
+      '<p class="hint">Start = sow indoors. Set out = transplant (or direct-sow, marked "direct"). Every date is computed from your frost dates.</p>';
+    html += '<div class="card"><table><thead><tr><th>Crop</th><th>Start indoors</th><th>Set outdoors</th><th class="num">Set-out vs frost</th></tr></thead><tbody>';
+    var cat = GBP.catalog();
+    var now = todayISO();
+    var started = false;
+    for (var i = 0; i < cat.length; i++) {
+      var s = GBP.scheduleForPlant(cat[i], state.zone, state.year);
+      var startHtml = s.isDirectSow ? "direct sow" : GBP.formatDate(s.startIndoorsISO) + dayBadge(s.startIndoorsISO);
+      html += "<tr><td><strong>" + esc(cat[i].name) + '</strong></td><td>' + startHtml + "</td><td>" +
+        GBP.formatDate(s.setOutISO) + dayBadge(s.setOutISO) + "</td><td class='num'>" +
+        (s.setOutISO === f.lastFrost ? "on frost date" :
+          GBP.diffDays(f.lastFrost, s.setOutISO) > 0 ?
+            "+" + GBP.diffDays(f.lastFrost, s.setOutISO) + "d" :
+            GBP.diffDays(f.lastFrost, s.setOutISO) + "d") + "</td></tr>";
+    }
+    html += "</tbody></table></div>";
+    html += '<p class="hint">Rows marked "direct sow" go straight into the garden — no indoor start needed, which keeps things simpler.</p>';
+    $view.innerHTML = html;
+  }
+
+  // ---------------- Log tab ----------------
+  function renderLog() {
+    var bedOpts = state.beds.map(function (b) {
+      return '<option value="' + esc(b.id) + '">' + esc(b.name) + "</option>";
+    }).join("");
+    var kindOpts = LOG_KINDS.map(function (k) {
+      return '<option value="' + k.id + '">' + esc(k.label) + "</option>";
+    }).join("");
+    var html = "<h2>Log what happened</h2>" +
+      '<p class="hint">A garden journal you&rsquo;ll actually keep: one line at a time. Wrap-up entries make the fall review painless.</p>';
+    html += '<div class="card grid-2">' +
+      '<div class="field"><label>Date</label><input type="date" id="logDate" value="' + todayISO() + '"></div>' +
+      '<div class="field"><label>Bed (optional)</label><select id="logBed"><option value="">— none —</option>' + bedOpts + "</select></div>" +
+      '<div class="field"><label>Type</label><select id="logKind">' + kindOpts + "</select></div>" +
+      '<div class="field grow"><label>What happened</label><input type="text" id="logText" maxlength="2000" placeholder="e.g. Tomato starts hardened off 3 days, looking strong"></div>' +
+      '<div class="field"><label>&nbsp;</label><button class="btn log-add">Add entry</button></div>' +
+      "</div>";
+
+    if (state.log.length === 0) {
+      html += '<div class="card"><div class="empty">No entries yet. Seed started, transplant, harvest, note, wrap-up — anything worth remembering.</div></div>';
+    } else {
+      html += "<h2>Season entries (" + state.log.length + ")</h2><div class='card'>";
+      var sorted = state.log.slice().sort(function (a, b) { return b.date < a.date ? -1 : b.date > a.date ? 1 : 0; });
+      for (var i = 0; i < sorted.length; i++) {
+        var e = sorted[i];
+        var kindLabel = LOG_KINDS.filter(function (k) { return k.id === e.kind; })[0];
+        kindLabel = kindLabel ? kindLabel.label : e.kind;
+        var bedName = "";
+        for (var j = 0; j < state.beds.length; j++) if (state.beds[j].id === e.bedId) bedName = state.beds[j].name;
+        html += '<div class="log-entry"><span class="when">' + GBP.formatDate(e.date) + "</span>" +
+          '<span class="kind">' + esc(kindLabel) + "</span>" +
+          (bedName ? "<span>" + esc(bedName) + "</span>" : "") +
+          "<span>" + esc(e.text) + "</span>" +
+          '<button class="btn danger log-delete" data-log-id="' + esc(e.id) + '">Delete</button></div>';
+      }
+      html += "</div>";
+    }
+    var wrapCount = state.log.filter(function (e) { return e.kind === "wrap-up"; }).length;
+    html += '<p class="hint">Wrap-up entries so far: ' + wrapCount + '. Those are your season review — great fodder for next year&rsquo;s seed order.</p>';
+    $view.innerHTML = html;
+  }
+
+  function logClickHandlers(ev) {
+    var t = ev.target;
+    if (t.classList.contains("log-add")) {
+      var date = GBP.parseISO(document.getElementById("logDate").value) ? document.getElementById("logDate").value : todayISO();
+      var text = document.getElementById("logText").value.trim();
+      if (!text) return;
+      state.log.push({
+        id: uid(), date: date,
+        bedId: document.getElementById("logBed").value,
+        kind: document.getElementById("logKind").value,
+        text: text.slice(0, 2000)
+      });
+      persist(); renderAll();
+    } else if (t.classList.contains("log-delete")) {
+      var id = t.getAttribute("data-log-id");
+      state.log = state.log.filter(function (e) { return e.id !== id; });
+      persist(); renderAll();
+    }
+  }
+
+  // ---------------- Data tab ----------------
+  function testDataSummary() {
+    return "See tests/test.mjs — run with: node tests/test.mjs";
+  }
+  function renderData() {
+    var html = "<h2>Your data, your device</h2>" +
+      '<p class="hint">Everything lives in this browser&rsquo;s localStorage on this device only. No accounts, no syncing, nothing sent anywhere.</p>';
+    html += '<div class="card grid-2">' +
+      '<div class="field"><label>&nbsp;</label><button class="btn" id="exportBtn">Export JSON backup</button></div>' +
+      '<div class="field"><label>&nbsp;</label><label class="btn secondary" for="importFile" style="display:inline-block;padding:7px 14px;cursor:pointer">Import JSON backup</label>' +
+      '<input type="file" id="importFile" accept="application/json" style="display:none"></div>' +
+      '<div class="field"><label>&nbsp;</label><button class="btn danger" id="clearBtn">Erase all data</button></div>' +
+      "</div>";
+    html += '<div class="card"><p><strong>Export</strong> saves a file like <code>garden-planner-backup.json</code> you can '
+      + "keep or move to another computer. <strong>Import</strong> replaces what's here with the file's beds and log — "
+      + "double-check you picked the right file first.</p></div>";
+    html += '<div class="card"><p><strong>Save status:</strong> ' + esc(lastSaveStatus) + "</p>" +
+      "<p><strong>Tests:</strong> " + esc(testDataSummary()) + "</p></div>";
+    $view.innerHTML = html;
+  }
+
+  function dataClickHandlers(ev) {
+    var t = ev.target;
+    if (t.id === "exportBtn") {
+      var file = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(file);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "garden-planner-backup.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } else if (t.id === "clearBtn") {
+      if (confirm("Erase every bed, note, and log entry on this device? This cannot be undone.")) {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        state = defaultState();
+        persist(); renderAll();
+      }
+    }
+  }
+
+  function importFileHandler(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var parsed = JSON.parse(String(reader.result));
+        state = migrate(parsed);
+        persist();
+        renderAll();
+        alert("Backup imported: " + state.beds.length + " bed(s), " + state.log.length + " log entr(ies).");
+      } catch (err) {
+        alert("Could not read that file as a planner backup.\n\nDetail: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------------- Tabs & global wiring ----------------
+  function renderTab() {
+    if (activeTab === "schedule") renderSchedule();
+    else if (activeTab === "log") renderLog();
+    else if (activeTab === "data") renderData();
+    else renderBeds();
+  }
+  function renderAll() {
+    renderTop();
+    renderTab();
+    var saveNote = document.getElementById("saveNote");
+    if (saveNote) saveNote.textContent = lastSaveStatus;
+  }
+
+  $tabs.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (t.tagName !== "BUTTON") return;
+    activeTab = t.getAttribute("data-tab");
+    var btns = $tabs.querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle("active", btns[i] === t);
+    }
+    renderTab();
+  });
+
+  $view.addEventListener("click", function (ev) {
+    bedsClickHandlers(ev);
+    logClickHandlers(ev);
+    dataClickHandlers(ev);
+  });
+  $view.addEventListener("change", function (ev) {
+    if (ev.target.id === "importFile") { importFileHandler(ev); return; }
+    bedsChangeHandlers(ev);
+  });
+
+  $zoneSelect.addEventListener("change", function () {
+    state.zone = GBP.clampZone($zoneSelect.value);
+    persist(); renderAll();
+  });
+  $yearInput.addEventListener("change", function () {
+    var y = parseInt($yearInput.value, 10);
+    if (isFinite(y) && y >= 2020 && y <= 2100) state.year = y;
+    persist(); renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
